@@ -7,6 +7,7 @@ import { Beat } from "./beat";
 import { TempoController, TEMPO } from "./tempo";
 import { FormTracker, FORM } from "./form";
 import { SessionRecorder, saveSession, loadSessions, type Session } from "./session";
+import { getCoachReport, formatReport } from "./coach";
 
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
@@ -123,6 +124,20 @@ function showSummary(s: Session) {
     `Carryover held: ${carry}`;
 }
 
+// after a session: ask the gemini coach, then add its report under the summary
+// runs only after the session ends, never during the live loop
+async function askCoach() {
+  const base = summaryEl.textContent;
+  summaryEl.textContent = base + "\n\nAsking the coach…";
+  try {
+    const report = await getCoachReport(loadSessions());
+    summaryEl.textContent = base + "\n\n" + formatReport(report);
+  } catch (err) {
+    console.error(err);
+    summaryEl.textContent = base + "\n\nCoach unavailable: " + (err as Error).message;
+  }
+}
+
 andanteBtn.addEventListener("click", async () => {
   if (andanteOn) {
     andanteOn = false;
@@ -131,6 +146,7 @@ andanteBtn.addEventListener("click", async () => {
     if (session) {
       saveSession(session);
       showSummary(session);
+      askCoach();
     }
     beat.stop();
     tempo.reset();
