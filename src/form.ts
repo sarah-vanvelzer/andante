@@ -1,6 +1,6 @@
 // form score from 2 simple signals, compared with your own baseline
-// trunk lean: shoulders vs. hips angle from vertical (slouching = more lean)
-// knee lift: how high each step lifts, as % of your baseline lift
+// trunk lean: shoulders vs hips angle from vertical (slouching = more lean)
+// knee lift: how much your feet are moving, as % of your baseline
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { median } from "./steps";
 
@@ -10,7 +10,7 @@ export const FORM = {
     leanZero: 13, // degrees of extra lean that gives a lean score of 0
     liftOk: 0.85, // lift at 85%+ of baseline = full marks
     liftZero: 0.5, // lift at 50% of baseline = 0
-    liftSteps: 4, // knee lift uses the last 4 steps
+    liftWindowMs: 2500, // knee lift looks at the last 2.5 s of movement
 };
 
 export class FormTracker {
@@ -21,18 +21,26 @@ export class FormTracker {
     baseLift: number | null = null;
 
     lean: number | null = null;
-    private lifts: number[] = [];
-    private peak = -Infinity;
-    private low = Infinity;
+    lift: number | null = null;
+    private hist: { t: number; v: number }[] = [];
 
-    // call when andante starts
+    // call when the beat locks on
     startBaseline(now: number) {
         this.baseStart = now;
         this.baseLeans = [];
         this.baseLifts = [];
         this.baseLean = null;
         this.baseLift = null;
-        this.lifts = [];
+    }
+
+    // call when andante stops
+    // clears your baseline so the next start measures fresh
+    reset() {
+        this.baseStart = null;
+        this.baseLeans = [];
+        this.baseLifts = [];
+        this.baseLean = null;
+        this.baseLift = null;
     }
 
     get calibrating() {
@@ -40,34 +48,31 @@ export class FormTracker {
     }
 
     // every frame
-    update(lm: NormalizedLandmark[] | undefined, aspect: number, v: number | null, step: boolean, now: number) {
+    update(lm: NormalizedLandmark[] | undefined, aspect: number, v: number | null, now: number) {
         // trunk lean, smoothed
         if (lm) {
             const a = trunkLean(lm, aspect);
             this.lean = this.lean === null ? a : 0.1 * a + 0.9 * this.lean;
         }
 
-        // knee lift = how far the foot-gap rises from its low point to its high point between two steps
-        // measuring rise (not raw height) removes the resting gap between ankle and toe
-        if (v !== null) {
-            this.peak = Math.max(this.peak, v);
-            this.low = Math.min(this.low, v);
-        }
-        if (step) {
-            const rise = this.peak - this.low;
-            if (Number.isFinite(rise) && rise > 0) {
-                this.lifts.push(rise);
-                if (this.lifts.length > FORM.liftSteps) this.lifts.shift();
-                if (this.calibrating) this.baseLifts.push(rise);
-            }
-            this.peak = -Infinity;
-            this.low = Infinity;
+        // knee lift = how far the foot-gap line moves (low to high) over the last 2.5 s
+        // updates every frame, so it drops right away when you stop lifting
+        // even if no steps are being counted
+        if (v !== null) this.hist.push({ t: now, v });
+        while (this.hist.length && this.hist[0].t < now - FORM.liftWindowMs) this.hist.shift();
+        if (this.hist.length > 5) {
+            let lo = Infinity, hi = -Infinity;
+            for (const h of this.hist) { if (h.v < lo) lo = h.v; if (h.v > hi) hi = h.v; }
+            this.lift = hi - lo;
+            if (this.calibrating) this.baseLifts.push(this.lift);
+        } else {
+            this.lift = null;
         }
 
         // collect baseline, then lock it in
         if (this.calibrating && this.lean !== null) {
             this.baseLeans.push(this.lean);
-            if (now - this.baseStart! > FORM.baselineMs && this.baseLifts.length >= 3) {
+            if (now - this.baseStart! > FORM.baselineMs && this.baseLifts.length > 0) {
                 this.baseLean = median(this.baseLeans);
                 this.baseLift = median(this.baseLifts);
             }
@@ -80,10 +85,10 @@ export class FormTracker {
         return this.lean - this.baseLean;
     }
 
-    // recent lift as a fraction of baseline
+    // current lift as a fraction of baseline
     liftRatio(): number | null {
-        if (this.baseLift === null || this.lifts.length === 0) return null;
-        return median(this.lifts) / this.baseLift;
+        if (this.baseLift === null || this.lift === null || this.baseLift <= 0) return null;
+        return this.lift / this.baseLift;
     }
 
     // 0 to 100, or null while calibrating

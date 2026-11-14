@@ -51,12 +51,14 @@ const form = new FormTracker();
 const formEl = document.querySelector<HTMLSpanElement>("#form")!;
 const leanEl = document.querySelector<HTMLSpanElement>("#lean")!;
 const liftEl = document.querySelector<HTMLSpanElement>("#lift")!;
+const coachEl = document.querySelector<HTMLSpanElement>("#coach")!;
 
 andanteBtn.addEventListener("click", async () => {
   if (andanteOn) {
     andanteOn = false;
     beat.stop();
     tempo.reset();
+    form.reset();
     andanteBtn.textContent = "Start Andante";
   } else {
     await beat.unlock();
@@ -120,12 +122,12 @@ function loop() {
     if (sample) graph.push(sample);
     if (step) graph.step(now);
     // form: lean + lift vs your baseline
-    form.update(lm, video.videoWidth / video.videoHeight, sample ? sample.v : null, step, now);
+    form.update(lm, video.videoWidth / video.videoHeight, sample ? sample.v : null, now);
     const score = form.score();
     const ld = form.leanDelta();
     const lr = form.liftRatio();
     formEl.textContent = form.calibrating ? "measuring" : score === null ? "–" : String(score);
-    leanEl.textContent = ld === null ? "–" : `${ld >= 0 ? "+" : ""}${Math.round(ld)}°`;
+    leanEl.textContent = ld === null ? "–" : `+${Math.max(0, Math.round(ld))}°`;
     liftEl.textContent = lr === null ? "–" : `${Math.round(lr * 100)}%`;
     graph.draw(now);
     const spm = detector.cadence(now);
@@ -143,9 +145,10 @@ function loop() {
 
     // nudge the tempo up while you keep up with it
     if (andanteOn && beat.playing) {
-      const next = tempo.update(now, beat.bpm, spm);
+      const next = tempo.update(now, beat.bpm, spm, score);
       if (next !== null) beat.setBpm(next, 2);
     }
+    coachEl.textContent = beat.playing && andanteOn ? tempo.state || "–" : "–";
     beatEl.textContent = beat.playing ? String(Math.round(beat.bpm)) : andanteOn ? "listening" : "–";
     // keep the bpm box showing the live tempo
     if (beat.playing && document.activeElement !== bpmInput) bpmInput.value = String(Math.round(beat.bpm));
