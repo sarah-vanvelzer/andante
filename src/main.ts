@@ -2,6 +2,8 @@ import "./style.css";
 import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { createPose } from "./pose";
 import { StepDetector } from "./steps";
+import { DebugGraph } from "./graph";
+
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
 const overlay = document.querySelector<HTMLCanvasElement>("#overlay")!;
@@ -14,7 +16,8 @@ const steadyEl = document.querySelector<HTMLSpanElement>("#steady")!;
 const resetBtn = document.querySelector<HTMLButtonElement>("#reset")!;
 
 const detector = new StepDetector();
-resetBtn.addEventListener("click", () => detector.reset());
+const graph = new DebugGraph(document.querySelector<HTMLCanvasElement>("#graph")!);
+resetBtn.addEventListener("click", () => { detector.reset(); graph.clear(); });
 
 const ctx = overlay.getContext("2d")!;
 const draw = new DrawingUtils(ctx);
@@ -65,7 +68,10 @@ function loop() {
     }
 
     // step detection + readout
-    detector.update(lm, now);
+    const { sample, step } = detector.update(lm, now);
+    if (sample) graph.push(sample);
+    if (step) graph.step(now);
+    graph.draw(now);
     const spm = detector.cadence(now);
     const { steady } = detector.steadiness();
     stepsEl.textContent = String(detector.stepCount);
