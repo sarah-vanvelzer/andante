@@ -1,60 +1,59 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import typescriptLogo from './assets/typescript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.ts'
+import "./style.css";
+import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { createPose } from "./pose";
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+const video = document.querySelector<HTMLVideoElement>("#video")!;
+const overlay = document.querySelector<HTMLCanvasElement>("#overlay")!;
+const startBtn = document.querySelector<HTMLButtonElement>("#start")!;
+const statusEl = document.querySelector<HTMLSpanElement>("#status")!;
 
-<div class="ticks"></div>
+const ctx = overlay.getContext("2d")!;
+const draw = new DrawingUtils(ctx);
+let pose: PoseLandmarker | null = null;
+let lastVideoTime = -1;
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+startBtn.addEventListener("click", async () => {
+  startBtn.disabled = true;
+  try {
+    statusEl.textContent = "Starting camera…";
+    // on click: asks for webcam, starts video, & loads model
+    video.srcObject = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720 },
+      audio: false,
+    });
+    await video.play();
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+    statusEl.textContent = "Loading pose model…";
+    pose = await createPose();
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+    statusEl.textContent = "Running";
+    requestAnimationFrame(loop);
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Error: " + (err as Error).message;
+    startBtn.disabled = false;
+  }
+});
+
+function loop() {
+  if (pose && video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    const now = performance.now();
+    // returns 33 body points
+    const result = pose.detectForVideo(video, now);
+
+    // match the canvas to the video's real pixel size so points line up
+    overlay.width = video.videoWidth;
+    overlay.height = video.videoHeight;
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+    const lm = result.landmarks[0]; // list of points for one person
+    if (lm) {
+      // draws bones
+      draw.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, { color: "#ea44a5", lineWidth: 3 });
+      // draws joints
+      draw.drawLandmarks(lm, { color: "#f19f12", radius: 3 });
+    }
+  }
+  requestAnimationFrame(loop); // runs about 60 times a second
+}
