@@ -3,6 +3,7 @@ import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { createPose } from "./pose";
 import { StepDetector } from "./steps";
 import { DebugGraph } from "./graph";
+import { Beat } from "./beat";
 
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
@@ -18,6 +19,24 @@ const resetBtn = document.querySelector<HTMLButtonElement>("#reset")!;
 const detector = new StepDetector();
 const graph = new DebugGraph(document.querySelector<HTMLCanvasElement>("#graph")!);
 resetBtn.addEventListener("click", () => { detector.reset(); graph.clear(); });
+
+// fixed metronome (demo opener + fallback mode)
+// if button click, call beat.start()
+const bpmInput = document.querySelector<HTMLInputElement>("#bpm")!;
+const metroBtn = document.querySelector<HTMLButtonElement>("#metronome")!;
+const beat = new Beat();
+metroBtn.addEventListener("click", async () => {
+  if (beat.playing) {
+    beat.stop();
+    metroBtn.textContent = "Start metronome";
+  } else {
+    await beat.start(Number(bpmInput.value));
+    metroBtn.textContent = "Stop metronome";
+  }
+});
+bpmInput.addEventListener("change", () => {
+  if (beat.playing) beat.setBpm(Number(bpmInput.value));
+});
 
 const ctx = overlay.getContext("2d")!;
 const draw = new DrawingUtils(ctx);
