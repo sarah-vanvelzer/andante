@@ -20,3 +20,4 @@ main { padding: 20px; }
 #demoLabel { margin-left: auto; font-size: 14px; color: #9aa0aa; cursor: pointer; }
 #summary { max-width: 960px; margin-top: 16px; padding: 16px; border-radius: 8px; background: #16181d; white-space: pre-line; line-height: 1.6; }
 #summary:empty { display: none; }
+#readout #model { font-size: 18px; font-weight: 600; }

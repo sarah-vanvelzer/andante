@@ -8,6 +8,7 @@ import { TempoController, TEMPO } from "./tempo";
 import { FormTracker, FORM } from "./form";
 import { SessionRecorder, saveSession, loadSessions, type Session } from "./session";
 import { getCoachReport, formatReport } from "./coach";
+import { PersonModel, MODEL } from "./model";
 
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
@@ -43,6 +44,9 @@ function applyMode() {
   carryFirstMs = demo ? 35000 : 180000;
   // then repeats: every 45 s in demo, every 4 min in real
   carryEveryMs = demo ? 45000 : 240000;
+  // model: how long to wait before judging a tempo change / a slip (5 s demo, 15 s real)
+  MODEL.settleMs = demo ? 5000 : 15000;
+  MODEL.horizonMs = demo ? 5000 : 15000;
 }
 demoBox.addEventListener("change", applyMode);
 applyMode();
@@ -108,6 +112,8 @@ const liftEl = document.querySelector<HTMLSpanElement>("#lift")!;
 const coachEl = document.querySelector<HTMLSpanElement>("#coach")!;
 
 const recorder = new SessionRecorder();
+const model = new PersonModel();
+const modelEl = document.querySelector<HTMLSpanElement>("#model")!;
 const summaryEl = document.querySelector<HTMLElement>("#summary")!;
 
 // shows the finished session's numbers under the graph
@@ -238,6 +244,7 @@ function loop() {
       form.startBaseline(now);
       nextCarryAt = now + carryFirstMs;
       recorder.begin(now, demoBox.checked); // recording starts when beat locks
+      model.resetBuffers();
     }
 
     // automatic carryover: when due, but only while form is good
@@ -273,9 +280,21 @@ function loop() {
     // paused during carryover so the tempo doesn't change while muted
     if (andanteOn && beat.playing && !carry) {
       const next = tempo.update(now, beat.bpm, spm, score);
-      if (next !== null) beat.setBpm(next, 2);
+      if (next !== null) {
+        // tell the model so it can measure how you respond
+        model.tempoChanged(now, beat.bpm, next, detector.quickCadence(now));
+        beat.setBpm(next, 2);
+      }
     }
     coachEl.textContent = beat.playing && andanteOn ? tempo.state || "–" : "–";
+
+    // per-person model learns while andante runs (paused during carryover, when there's no beat to follow)
+    if (andanteOn && beat.playing && !carry && tempo.base !== null) {
+      model.update(now, detector.quickCadence(now), beat.bpm, tempo.base, score);
+    }
+    const followTxt = model.followReady ? `follows ${Math.round(model.follow() * 100)}%` : `learning (${model.events}/${MODEL.minEvents})`;
+    const slipTxt = model.slipReady && model.slipRisk !== null ? `slip risk ${Math.round(model.slipRisk * 100)}%` : `learning (${model.labels}/${MODEL.minLabels})`;
+    modelEl.textContent = andanteOn && beat.playing ? `${followTxt} · ${slipTxt}` : "–";
     // record one sample per second while andante is running
     if (andanteOn && beat.playing) recorder.record(now, spm, beat.bpm, score, tempo.state);
     beatEl.textContent = beat.playing ? String(Math.round(beat.bpm)) : andanteOn ? "listening" : "–";

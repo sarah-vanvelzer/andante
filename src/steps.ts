@@ -98,6 +98,16 @@ export class StepDetector {
     return 60000 / median(g);
   }
 
+  // quicker cadence from just the last 2 strides (4 steps)
+  // reacts faster than cadence(), used by the per-person model
+  quickCadence(now: number): number | null {
+    const last = this.stepTimes[this.stepTimes.length - 1];
+    if (last === undefined || now - last > 2000) return null;
+    const st = this.strides(2);
+    if (st.length < 2) return null;
+    return 120000 / ((st[0] + st[1]) / 2);
+  }
+
   // beat-lock rule: steady if either step gaps or stride gaps are even enough
   // stride = every other step (same foot to same foot)
   // strides cancel out left/right differences so slow or uneven marching can still lock
