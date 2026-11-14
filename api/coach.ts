@@ -39,7 +39,8 @@ Rules:
 - Next session: startBpm within 5% of this session's startBpm or endBpm, maxBpm at most 10% above startBpm, minutes between 10 and 40.
 - If form or followPct was low, keep the tempo the same or lower rather than pushing.
 - Sessions marked demo are short test runs; still give a plan but keep it modest.
-- Plain, warm, short language. No jargon.`;
+- Plain, warm, short language. No jargon.
+- Write carryover, followPct, and other fractions as percentages (e.g. 99%), never as decimals.`;
 
 // models to try in order: if the first is overloaded, fall back to the lighter one
 const MODELS = [MODEL, "gemini-flash-lite-latest"];
