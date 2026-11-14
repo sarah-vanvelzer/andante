@@ -1,13 +1,45 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>andante</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Andante</title>
+</head>
+
+<body>
+  <header>
+    <h1>Andante</h1>
+    <button id="start">Start camera</button>
+    <span id="status">Idle</span>
+  </header>
+  <main>
+    <!-- stage for video -->
+    <div id="stage">
+      <video id="video" playsinline muted></video>
+      <!-- canvas draws skeleton -->
+      <canvas id="overlay"></canvas>
+    </div>
+    <section id="readout">
+      <div><span class="label">Steps</span><span id="steps">0</span></div>
+      <div><span class="label">Steps/min</span><span id="cadence">–</span></div>
+      <div><span class="label">Steady</span><span id="steady">–</span></div>
+      <div><span class="label">Form</span><span id="form">–</span></div>
+      <div><span class="label">Lean</span><span id="lean">–</span></div>
+      <div><span class="label">Lift</span><span id="lift">–</span></div>
+      <div><span class="label">Tempo</span><span id="coach">–</span></div>
+      <button id="reset">Reset count</button>
+      <!-- grabs bpm from whatever is currently in box -->
+      <label>BPM <input id="bpm" type="number" value="100" min="40" max="200" /></label>
+      <button id="metronome">Start metronome</button>
+      <button id="andante">Start Andante</button>
+      <!-- beat readout -->
+      <div><span class="label">Beat</span><span id="beat">–</span></div>
+    </section>
+    <canvas id="graph"></canvas>
+    </div>
+  </main>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>
