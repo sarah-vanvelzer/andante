@@ -6,6 +6,7 @@ import { DebugGraph } from "./graph";
 import { Beat } from "./beat";
 import { TempoController, TEMPO } from "./tempo";
 import { FormTracker, FORM } from "./form";
+import { SessionRecorder, saveSession, loadSessions, type Session } from "./session";
 
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
@@ -105,9 +106,32 @@ const leanEl = document.querySelector<HTMLSpanElement>("#lean")!;
 const liftEl = document.querySelector<HTMLSpanElement>("#lift")!;
 const coachEl = document.querySelector<HTMLSpanElement>("#coach")!;
 
+const recorder = new SessionRecorder();
+const summaryEl = document.querySelector<HTMLElement>("#summary")!;
+
+// shows the finished session's numbers under the graph
+function showSummary(s: Session) {
+  const pct = (x: number | null) => (x === null ? "–" : `${x}%`);
+  const carry = s.carryovers.length ? s.carryovers.map((c) => `${Math.round(c * 100)}%`).join(", ") : "none";
+  summaryEl.textContent =
+    `Session saved (${loadSessions().length} total)\n` +
+    `Length: ${s.durationS} s\n` +
+    `Tempo: ${s.startBpm} → ${s.endBpm} bpm (peak ${s.peakBpm})\n` +
+    `Average cadence: ${s.avgSpm ?? "–"} steps/min\n` +
+    `Average form: ${s.avgForm ?? "–"}\n` +
+    `On the beat: ${pct(s.followPct)} of the time\n` +
+    `Carryover held: ${carry}`;
+}
+
 andanteBtn.addEventListener("click", async () => {
   if (andanteOn) {
     andanteOn = false;
+    // save the session BEFORE resetting everything
+    const session = recorder.finish(performance.now());
+    if (session) {
+      saveSession(session);
+      showSummary(session);
+    }
     beat.stop();
     tempo.reset();
     form.reset();
@@ -197,6 +221,7 @@ function loop() {
       tempo.lock(spm, now);
       form.startBaseline(now);
       nextCarryAt = now + carryFirstMs;
+      recorder.begin(now, demoBox.checked); // recording starts when beat locks
     }
 
     // automatic carryover: when due, but only while form is good
@@ -223,6 +248,7 @@ function loop() {
         beat.mute(false);
         const held = carry.spms.length ? median(carry.spms) / carry.bpm : null;
         carryEl.textContent = held === null ? "no steps" : `${Math.round(held * 100)}% held`;
+        if (held !== null) recorder.addCarryover(held);
         carry = null;
       }
     }
@@ -234,6 +260,8 @@ function loop() {
       if (next !== null) beat.setBpm(next, 2);
     }
     coachEl.textContent = beat.playing && andanteOn ? tempo.state || "–" : "–";
+    // record one sample per second while andante is running
+    if (andanteOn && beat.playing) recorder.record(now, spm, beat.bpm, score, tempo.state);
     beatEl.textContent = beat.playing ? String(Math.round(beat.bpm)) : andanteOn ? "listening" : "–";
     // keep the bpm box showing the live tempo
     if (beat.playing && document.activeElement !== bpmInput) bpmInput.value = String(Math.round(beat.bpm));
