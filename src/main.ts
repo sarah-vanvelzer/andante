@@ -4,6 +4,7 @@ import { createPose } from "./pose";
 import { StepDetector } from "./steps";
 import { DebugGraph } from "./graph";
 import { Beat } from "./beat";
+import { TempoController } from "./tempo";
 
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
@@ -44,10 +45,12 @@ bpmInput.addEventListener("change", () => {
 const andanteBtn = document.querySelector<HTMLButtonElement>("#andante")!;
 const beatEl = document.querySelector<HTMLSpanElement>("#beat")!;
 let andanteOn = false;
+const tempo = new TempoController();
 andanteBtn.addEventListener("click", async () => {
   if (andanteOn) {
     andanteOn = false;
     beat.stop();
+    tempo.reset();
     andanteBtn.textContent = "Start Andante";
   } else {
     await beat.unlock();
@@ -118,8 +121,19 @@ function loop() {
     steadyEl.textContent = spm === null ? "–" : (steady ? "Yes" : "No") + (spread === null ? "" : ` ${Math.round(spread * 100)}%`);
 
     // lock on: first time steps are steady, start the beat at that cadence
-    if (andanteOn && !beat.playing && steady && spm !== null) beat.start(spm);
+    if (andanteOn && !beat.playing && steady && spm !== null) {
+      beat.start(spm);
+      tempo.lock(spm, now);
+    }
+
+    // nudge the tempo up while you keep up with it
+    if (andanteOn && beat.playing) {
+      const next = tempo.update(now, beat.bpm, spm);
+      if (next !== null) beat.setBpm(next, 2);
+    }
     beatEl.textContent = beat.playing ? String(Math.round(beat.bpm)) : andanteOn ? "listening" : "–";
+    // keep the bpm box showing the live tempo
+    if (beat.playing && document.activeElement !== bpmInput) bpmInput.value = String(Math.round(beat.bpm));
   }
   requestAnimationFrame(loop); // runs about 60 times a second
 }
