@@ -24,7 +24,17 @@ export type Session = {
   avgForm: number | null;
   followPct: number | null; // % of time your cadence was within 8% of the beat
   carryovers: number[]; // each carryover result as a fraction (1.0 = held perfectly)
+  model: ModelSummary | null; // what the per-person model had learned by the end
   samples: Sample[]; // one per second
+};
+
+// what the on-device model learned, passed to the coach
+export type ModelSummary = {
+  followPct: number | null; // % of each speed-up you followed (null = not enough data yet)
+  tempoChanges: number; // speed-ups it has learned from, all sessions
+  riskAtStart: number; // predicted slip risk at your starting tempo, good form (%)
+  riskAtPlus10: number; // predicted slip risk 10% above your starting tempo, good form (%)
+  slipPredictedSec: number; // seconds it held early because it predicted a slip
 };
 
 const KEY = "andante.sessions";
@@ -65,7 +75,7 @@ export class SessionRecorder {
   }
 
   // call when andante stops, returns the finished session (or null if too short)
-  finish(now: number): Session | null {
+  finish(now: number, model: Omit<ModelSummary, "slipPredictedSec"> | null = null): Session | null {
     if (this.start === null) return null;
     const s = this.samples;
     const start = this.start;
@@ -88,6 +98,7 @@ export class SessionRecorder {
       avgForm: forms.length ? Math.round(avg(forms)) : null,
       followPct: withSpm.length ? Math.round((100 * following.length) / withSpm.length) : null,
       carryovers: this.carryovers.map(round2),
+      model: model && { ...model, slipPredictedSec: s.filter((x) => x.state === "holding (slip predicted)").length },
       samples: s,
     };
   }

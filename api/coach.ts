@@ -15,6 +15,7 @@ const SCHEMA = {
     wentWell: { type: "array", items: { type: "string" }, description: "1-3 short points" },
     toWorkOn: { type: "array", items: { type: "string" }, description: "1-3 short points" },
     trend: { type: "string", description: "1 sentence comparing with past sessions, or say this is the first one" },
+    learned: { type: "string", description: "1 sentence on what Andante's on-device model has learned about this patient, in plain words" },
     nextSession: {
       type: "object",
       properties: {
@@ -26,7 +27,7 @@ const SCHEMA = {
       required: ["startBpm", "maxBpm", "minutes", "focus"],
     },
   },
-  required: ["summary", "wentWell", "toWorkOn", "trend", "nextSession"],
+  required: ["summary", "wentWell", "toWorkOn", "trend", "learned", "nextSession"],
 };
 
 // instructions for gemini
@@ -34,10 +35,12 @@ const SCHEMA = {
 const RULES = `You are a supportive walking-rehab coach writing a short report for a patient and their physiotherapist.
 You get numbers from a webcam rhythm-cueing app called Andante. Only use these numbers, do not invent data.
 How the app works: the beat locks at the patient's own cadence (startBpm), rises about 5% at a time while form holds, and eases off when form drops. Form is 0-100 vs the patient's own baseline (trunk lean + knee lift). followPct = % of time cadence was within 8% of the beat. Carryover = cadence during a short silent gap as a fraction of the beat (1.0 = held perfectly).
+The "model" field is what a small on-device model learned about this patient across sessions: followPct = % of each speed-up they actually follow, riskAtStart / riskAtPlus10 = predicted chance their form slips at their starting tempo vs 10% above it (with good form), slipPredictedSec = seconds the app held early because it predicted a slip. followPct null means it is still learning.
 Rules:
 - You are not a doctor. No diagnoses, no medical claims, no promises about treating any condition.
 - Next session: startBpm within 5% of this session's startBpm or endBpm, maxBpm at most 10% above startBpm, minutes between 10 and 40.
 - If form or followPct was low, keep the tempo the same or lower rather than pushing.
+- Use the model: high model.followPct and low riskAtPlus10 = a slightly higher start is fine; low model.followPct or high riskAtPlus10 = keep maxBpm close to startBpm.
 - Sessions marked demo are short test runs; still give a plan but keep it modest.
 - Plain, warm, short language. No jargon.
 - Write carryover, followPct, and other fractions as percentages (e.g. 99%), never as decimals.`;

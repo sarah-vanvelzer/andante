@@ -7,6 +7,7 @@ export type CoachReport = {
   wentWell: string[];
   toWorkOn: string[];
   trend: string;
+  learned: string;
   nextSession: { startBpm: number; maxBpm: number; minutes: number; focus: string };
 };
 
@@ -39,6 +40,7 @@ export function formatReport(r: CoachReport): string {
     `Went well\n${list(r.wentWell)}\n\n` +
     `To work on\n${list(r.toWorkOn)}\n\n` +
     `${r.trend}\n\n` +
+    `What Andante learned\n${r.learned}\n\n` +
     `Next session: start at ${Math.round(r.nextSession.startBpm)} bpm, up to ${Math.round(r.nextSession.maxBpm)} bpm, ${Math.round(r.nextSession.minutes)} min\n` +
     `Focus: ${r.nextSession.focus}`
   );

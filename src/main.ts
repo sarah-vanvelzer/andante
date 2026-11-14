@@ -148,8 +148,13 @@ async function askCoach() {
 andanteBtn.addEventListener("click", async () => {
   if (andanteOn) {
     andanteOn = false;
-    // save the session BEFORE resetting everything
-    const session = recorder.finish(performance.now());
+    // include what the model learned so the coach can use it
+    const session = recorder.finish(performance.now(), {
+      followPct: model.followReady ? Math.round(model.follow() * 100) : null,
+      tempoChanges: model.events,
+      riskAtStart: Math.round(model.riskAt(0) * 100),
+      riskAtPlus10: Math.round(model.riskAt(0.1) * 100),
+    });
     if (session) {
       saveSession(session);
       showSummary(session);

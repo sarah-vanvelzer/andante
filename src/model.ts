@@ -85,6 +85,12 @@ export class PersonModel {
     return this.predicted;
   }
 
+  // what the model thinks your slip risk is at a tempo above your start, with good form
+  // tempoAbove: 0.1 = 10% above where it locked
+  riskAt(tempoAbove: number): number {
+    return sigmoid(dot(this.w, [1, tempoAbove * 10, 0.1, 0]));
+  }
+
   // warm start: load what was learned in past sessions
   load() {
     try {

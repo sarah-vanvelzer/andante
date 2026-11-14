@@ -15,7 +15,7 @@ export class Beat {
 
     get bpm() { return this.transport.bpm.value; }
     get playing() { return this.loopId !== null; }
-    
+
     // must be called from a click
     // browsers only allow audio after a user action
     async unlock() {
@@ -28,7 +28,7 @@ export class Beat {
         this.transport.bpm.value = bpm;
         // one click per quarter note = one click per step
         this.loopId = this.transport.scheduleRepeat((time) => {
-            this.synth.triggerAttackRelease("C2", "32n", time);
+            if (!this.muted) this.synth.triggerAttackRelease("C2", "32n", time);
         }, "4n");
         this.transport.start();
     }
@@ -40,10 +40,11 @@ export class Beat {
     }
 
     // silence the clicks without stopping the clock
-    // so beat comes back exactly in time
+    // the clock keeps ticking, we just skip playing the sound
+    // so the beat comes back exactly in time
+    private muted = false;
     mute(on: boolean) {
-        // -Infinity means fully silent & 0 means normal volume
-        this.synth.volume.value = on ? -Infinity : 0;
+        this.muted = on;
     }
 
     // smoothly glide to a new tempo over seconds
