@@ -19,6 +19,10 @@ const steadyEl = document.querySelector<HTMLSpanElement>("#steady")!;
 const resetBtn = document.querySelector<HTMLButtonElement>("#reset")!;
 
 let carryMs = 8000;
+// first carryover runs 35 s after beat locks
+let carryFirstMs = 35000;
+// after first, carryovers run every 45 s
+let carryEveryMs = 45000;
 
 // demo mode squeezes every timer so a full session fits in ~2 min
 // real mode uses session-length timers
@@ -33,6 +37,10 @@ function applyMode() {
   TEMPO.easeEveryMs = demo ? 3000 : 10000;
   // carryover mute: 8 s in demo, 25 s in real
   carryMs = demo ? 8000 : 25000;
+  // first automatic carryover after lock: 35 s in demo, 3 min in real
+  carryFirstMs = demo ? 35000 : 180000;
+  // then repeats: every 45 s in demo, every 4 min in real
+  carryEveryMs = demo ? 45000 : 240000;
 }
 demoBox.addEventListener("change", applyMode);
 applyMode();
@@ -74,6 +82,8 @@ function startCarry() {
   carry = { start, until: start + carryMs, bpm: beat.bpm, spms: [], muted: false };
 }
 carryBtn.addEventListener("click", startCarry);
+// when the next automatic carryover is due (null = not scheduled)
+let nextCarryAt: number | null = null;
 
 // keyboard shortcuts so you can trigger things from where you're marching
 // m = metronome, a = andante, c = carryover
@@ -103,6 +113,7 @@ andanteBtn.addEventListener("click", async () => {
     form.reset();
     beat.mute(false);
     carry = null;
+    nextCarryAt = null;
     andanteBtn.textContent = "Start Andante";
   } else {
     await beat.unlock();
@@ -185,6 +196,14 @@ function loop() {
       beat.start(spm);
       tempo.lock(spm, now);
       form.startBaseline(now);
+      nextCarryAt = now + carryFirstMs;
+    }
+
+    // automatic carryover: when due, but only while form is good
+    // slouch doesn't spoil measurement
+    if (andanteOn && beat.playing && !carry && nextCarryAt !== null && now >= nextCarryAt && score !== null && score >= TEMPO.formGood) {
+      startCarry();
+      nextCarryAt = now + carryEveryMs;
     }
 
     // carryover running: collect your pace, then score it when the mute ends
