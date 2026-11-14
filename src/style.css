@@ -17,3 +17,4 @@ main { padding: 20px; }
 #readout span:not(.label) { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
 #readout input { width: 70px; margin-left: 6px; padding: 6px; border-radius: 6px; border: 1px solid #3a3f4a; background: #16181d; color: #e8e8e8; font-size: 16px; }
 #readout { flex-wrap: wrap; }
+#demoLabel { margin-left: auto; font-size: 14px; color: #9aa0aa; cursor: pointer; }

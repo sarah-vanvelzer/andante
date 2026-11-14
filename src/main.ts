@@ -4,8 +4,8 @@ import { createPose } from "./pose";
 import { StepDetector } from "./steps";
 import { DebugGraph } from "./graph";
 import { Beat } from "./beat";
-import { TempoController } from "./tempo";
-import { FormTracker } from "./form";
+import { TempoController, TEMPO } from "./tempo";
+import { FormTracker, FORM } from "./form";
 
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
@@ -17,6 +17,21 @@ const stepsEl = document.querySelector<HTMLSpanElement>("#steps")!;
 const cadenceEl = document.querySelector<HTMLSpanElement>("#cadence")!;
 const steadyEl = document.querySelector<HTMLSpanElement>("#steady")!;
 const resetBtn = document.querySelector<HTMLButtonElement>("#reset")!;
+
+// demo mode squeezes every timer so a full session fits in ~2 min
+// real mode uses session-length timers
+const demoBox = document.querySelector<HTMLInputElement>("#demo")!;
+function applyMode() {
+  const demo = demoBox.checked;
+  // measuring: 5 s in demo, 60 s in real
+  FORM.baselineMs = demo ? 5000 : 60000;
+  // speeding up: 6 s in demo, 30 s in real
+  TEMPO.stepEveryMs = demo ? 6000 : 30000;
+  // easing off: 3s in demo, 30 s in real
+  TEMPO.easeEveryMs = demo ? 3000 : 10000;
+}
+demoBox.addEventListener("change", applyMode);
+applyMode();
 
 const detector = new StepDetector();
 const graph = new DebugGraph(document.querySelector<HTMLCanvasElement>("#graph")!);
