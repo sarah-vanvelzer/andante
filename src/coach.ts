@@ -23,8 +23,8 @@ export async function getCoachReport(sessions: Session[]): Promise<CoachReport> 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ latest: { ...latest, samples: timeline }, history }),
-    // give up after 30 s so the demo never hangs
-    signal: AbortSignal.timeout(30000),
+    // give up after 45 s so the demo never hangs
+    signal: AbortSignal.timeout(45000),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? `coach failed (${res.status})`);

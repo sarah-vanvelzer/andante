@@ -98,7 +98,9 @@ export class FormTracker {
         if (d === null || r === null) return null;
         const leanScore = clamp01(1 - (d - FORM.leanFree) / (FORM.leanZero - FORM.leanFree));
         const liftScore = clamp01((r - FORM.liftZero) / (FORM.liftOk - FORM.liftZero));
-        return Math.round(100 * (0.5 * leanScore + 0.5 * liftScore));
+        // form is only as good as the weaker signal
+        // so good posture can't hide dragging feet (and the other way round)
+        return Math.round(100 * Math.min(leanScore, liftScore));
     }
 }
 

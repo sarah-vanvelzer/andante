@@ -42,8 +42,8 @@ Rules:
 - Plain, warm, short language. No jargon.
 - Write carryover, followPct, and other fractions as percentages (e.g. 99%), never as decimals.`;
 
-// models to try in order: if the first is overloaded, fall back to the lighter one
-const MODELS = [MODEL, "gemini-flash-lite-latest"];
+// fast model first (short report, quick reply), bigger model as backup
+const MODELS = ["gemini-flash-lite-latest", MODEL];
 
 export async function coach(body: unknown): Promise<unknown> {
   const key = process.env.GEMINI_API_KEY;
