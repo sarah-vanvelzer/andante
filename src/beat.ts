@@ -39,6 +39,13 @@ export class Beat {
         this.transport.stop();
     }
 
+    // silence the clicks without stopping the clock
+    // so beat comes back exactly in time
+    mute(on: boolean) {
+        // -Infinity means fully silent & 0 means normal volume
+        this.synth.volume.value = on ? -Infinity : 0;
+    }
+
     // smoothly glide to a new tempo over seconds
     setBpm(bpm: number, seconds = 1) {
         // glide instead of jumping

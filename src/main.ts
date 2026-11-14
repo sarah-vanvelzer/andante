@@ -1,7 +1,7 @@
 import "./style.css";
 import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { createPose } from "./pose";
-import { StepDetector } from "./steps";
+import { StepDetector, median } from "./steps";
 import { DebugGraph } from "./graph";
 import { Beat } from "./beat";
 import { TempoController, TEMPO } from "./tempo";
@@ -18,6 +18,8 @@ const cadenceEl = document.querySelector<HTMLSpanElement>("#cadence")!;
 const steadyEl = document.querySelector<HTMLSpanElement>("#steady")!;
 const resetBtn = document.querySelector<HTMLButtonElement>("#reset")!;
 
+let carryMs = 8000;
+
 // demo mode squeezes every timer so a full session fits in ~2 min
 // real mode uses session-length timers
 const demoBox = document.querySelector<HTMLInputElement>("#demo")!;
@@ -27,8 +29,10 @@ function applyMode() {
   FORM.baselineMs = demo ? 5000 : 60000;
   // speeding up: 6 s in demo, 30 s in real
   TEMPO.stepEveryMs = demo ? 6000 : 30000;
-  // easing off: 3s in demo, 30 s in real
+  // easing off: 3s in demo, 10 s in real
   TEMPO.easeEveryMs = demo ? 3000 : 10000;
+  // carryover mute: 8 s in demo, 25 s in real
+  carryMs = demo ? 8000 : 25000;
 }
 demoBox.addEventListener("change", applyMode);
 applyMode();
@@ -57,6 +61,29 @@ bpmInput.addEventListener("change", () => {
   if (beat.playing) beat.setBpm(Number(bpmInput.value));
 });
 
+// carryover: mute the beat for a bit and check whether your pace holds without it
+// carry is null when no test is running
+// during test, it remembers when tests ends, beat's tempo at start, & steps/min readings
+const carryBtn = document.querySelector<HTMLButtonElement>("#carry")!;
+const carryEl = document.querySelector<HTMLSpanElement>("#carryResult")!;
+let carry: { start: number; until: number; bpm: number; spms: number[]; muted: boolean } | null = null;
+// waits 3 s before muting so you have time to get back into position
+function startCarry() {
+  if (!beat.playing || carry) return;
+  const start = performance.now() + 3000;
+  carry = { start, until: start + carryMs, bpm: beat.bpm, spms: [], muted: false };
+}
+carryBtn.addEventListener("click", startCarry);
+
+// keyboard shortcuts so you can trigger things from where you're marching
+// m = metronome, a = andante, c = carryover
+window.addEventListener("keydown", (e) => {
+  if (document.activeElement === bpmInput) return;
+  if (e.key === "m") metroBtn.click();
+  if (e.key === "a") andanteBtn.click();
+  if (e.key === "c") startCarry();
+});
+
 // andante mode: wait for steady steps, then start the beat at your own pace
 const andanteBtn = document.querySelector<HTMLButtonElement>("#andante")!;
 const beatEl = document.querySelector<HTMLSpanElement>("#beat")!;
@@ -74,6 +101,8 @@ andanteBtn.addEventListener("click", async () => {
     beat.stop();
     tempo.reset();
     form.reset();
+    beat.mute(false);
+    carry = null;
     andanteBtn.textContent = "Start Andante";
   } else {
     await beat.unlock();
@@ -158,8 +187,30 @@ function loop() {
       form.startBaseline(now);
     }
 
+    // carryover running: collect your pace, then score it when the mute ends
+    if (carry && now < carry.start) {
+      // countdown before the mute
+      carryEl.textContent = `mute in ${Math.ceil((carry.start - now) / 1000)}s`;
+    } else if (carry) {
+      if (!carry.muted) {
+        beat.mute(true);
+        carry.muted = true;
+      }
+      // skip the first 2 s so we measure your pace without the beat, not the old one
+      if (spm !== null && now - carry.start > 2000) carry.spms.push(spm);
+      const left = Math.ceil((carry.until - now) / 1000);
+      carryEl.textContent = `muted ${left}s`;
+      if (now >= carry.until) {
+        beat.mute(false);
+        const held = carry.spms.length ? median(carry.spms) / carry.bpm : null;
+        carryEl.textContent = held === null ? "no steps" : `${Math.round(held * 100)}% held`;
+        carry = null;
+      }
+    }
+
     // nudge the tempo up while you keep up with it
-    if (andanteOn && beat.playing) {
+    // paused during carryover so the tempo doesn't change while muted
+    if (andanteOn && beat.playing && !carry) {
       const next = tempo.update(now, beat.bpm, spm, score);
       if (next !== null) beat.setBpm(next, 2);
     }
