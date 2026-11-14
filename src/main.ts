@@ -5,6 +5,7 @@ import { StepDetector } from "./steps";
 import { DebugGraph } from "./graph";
 import { Beat } from "./beat";
 import { TempoController } from "./tempo";
+import { FormTracker } from "./form";
 
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
@@ -46,6 +47,11 @@ const andanteBtn = document.querySelector<HTMLButtonElement>("#andante")!;
 const beatEl = document.querySelector<HTMLSpanElement>("#beat")!;
 let andanteOn = false;
 const tempo = new TempoController();
+const form = new FormTracker();
+const formEl = document.querySelector<HTMLSpanElement>("#form")!;
+const leanEl = document.querySelector<HTMLSpanElement>("#lean")!;
+const liftEl = document.querySelector<HTMLSpanElement>("#lift")!;
+
 andanteBtn.addEventListener("click", async () => {
   if (andanteOn) {
     andanteOn = false;
@@ -113,6 +119,14 @@ function loop() {
     const { sample, step } = detector.update(lm, now);
     if (sample) graph.push(sample);
     if (step) graph.step(now);
+    // form: lean + lift vs your baseline
+    form.update(lm, video.videoWidth / video.videoHeight, sample ? sample.v : null, step, now);
+    const score = form.score();
+    const ld = form.leanDelta();
+    const lr = form.liftRatio();
+    formEl.textContent = form.calibrating ? "measuring" : score === null ? "–" : String(score);
+    leanEl.textContent = ld === null ? "–" : `${ld >= 0 ? "+" : ""}${Math.round(ld)}°`;
+    liftEl.textContent = lr === null ? "–" : `${Math.round(lr * 100)}%`;
     graph.draw(now);
     const spm = detector.cadence(now);
     const { steady, spread } = detector.steadiness();
@@ -124,6 +138,7 @@ function loop() {
     if (andanteOn && !beat.playing && steady && spm !== null) {
       beat.start(spm);
       tempo.lock(spm, now);
+      form.startBaseline(now);
     }
 
     // nudge the tempo up while you keep up with it
