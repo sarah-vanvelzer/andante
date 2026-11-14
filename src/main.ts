@@ -113,6 +113,7 @@ const coachEl = document.querySelector<HTMLSpanElement>("#coach")!;
 
 const recorder = new SessionRecorder();
 const model = new PersonModel();
+model.load(); // warm start from past sessions
 const modelEl = document.querySelector<HTMLSpanElement>("#model")!;
 const summaryEl = document.querySelector<HTMLElement>("#summary")!;
 
@@ -157,6 +158,7 @@ andanteBtn.addEventListener("click", async () => {
     beat.stop();
     tempo.reset();
     form.reset();
+    model.save(); // remember what it learned for next time
     beat.mute(false);
     carry = null;
     nextCarryAt = null;
@@ -279,6 +281,9 @@ function loop() {
     // nudge the tempo up while you keep up with it
     // paused during carryover so the tempo doesn't change while muted
     if (andanteOn && beat.playing && !carry) {
+      // model advice (falls back to the rules until it has enough data)
+      tempo.raiseStep = model.raiseStep();
+      tempo.slipPredicted = model.slipPredicted();
       const next = tempo.update(now, beat.bpm, spm, score);
       if (next !== null) {
         // tell the model so it can measure how you respond
@@ -286,7 +291,7 @@ function loop() {
         beat.setBpm(next, 2);
       }
     }
-    coachEl.textContent = beat.playing && andanteOn ? tempo.state || "–" : "–";
+    coachEl.textContent = carry ? "carryover" : beat.playing && andanteOn ? tempo.state || "–" : "–";
 
     // per-person model learns while andante runs (paused during carryover, when there's no beat to follow)
     if (andanteOn && beat.playing && !carry && tempo.base !== null) {

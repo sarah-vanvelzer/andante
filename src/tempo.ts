@@ -19,6 +19,10 @@ export class TempoController {
     base: number | null = null;
     private lastChange = 0;
     state = "";
+    // set by the per-person model before each update
+    // raiseStep: how big a speed-up to take, slipPredicted: hold before form slips
+    raiseStep = TEMPO.raise;
+    slipPredicted = false;
 
     // call when the beat first locks on
     // records starting tempo & starts 10 second timer
@@ -56,6 +60,12 @@ export class TempoController {
             return Math.max(bpm * (1 - TEMPO.ease), this.base);
         }
 
+         // model thinks form is about to slip: hold early instead of pushing
+        if (this.slipPredicted) {
+            this.state = "holding (slip predicted)";
+            return null;
+        }
+        
         // form in the middle zone: hold
         if (form < TEMPO.formGood) {
             this.state = "holding";
@@ -83,6 +93,7 @@ export class TempoController {
         this.state = "speeding up";
         if (since < TEMPO.stepEveryMs) return null;
         this.lastChange = now;
-        return Math.min(bpm * (1 + TEMPO.raise), ceiling);
+        // never bigger than the rule-based step
+        return Math.min(bpm * (1 + Math.min(this.raiseStep, TEMPO.raise)), ceiling);
     }
 }

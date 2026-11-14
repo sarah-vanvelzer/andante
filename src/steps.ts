@@ -5,11 +5,12 @@ import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 export const CFG = {
   alpha: 0.35, // smoothing strength (EMA); belnds each new value with previous
-  windowMs: 2000, // how far back the thresholds look
+  windowMs: 3000, // how far back the thresholds look
   hiFrac: 0.6, // "foot is up" threshold, as a fraction of the range
   loFrac: 0.35, // "foot is down again" threshold
   minRange: 0.025, // ignore tiny wiggles (standing still)
   minStepGapMs: 250, // max 240 steps/min
+  staleMs: 3000, // no step for this long = you've stopped (slow marching can be 1.5 s per step)
   cadenceGaps: 7, // cadence uses the last 7 step gaps
   minAnkleVis: 0.5, // skip frames where ankles aren't clearly visible
   steadySpread: 0.35, // beat-lock rule (used in Block 2)
@@ -80,7 +81,7 @@ export class StepDetector {
     const g: number[] = [];
     for (let i = this.stepTimes.length - 1; i > 0 && g.length < n; i--) {
       const d = this.stepTimes[i] - this.stepTimes[i - 1];
-      if (d > 2000) break;
+      if (d > CFG.staleMs) break;
       g.push(d);
     }
     return g;
@@ -89,7 +90,7 @@ export class StepDetector {
   // steps per minute, or null if there aren't enough recent steps
   cadence(now: number): number | null {
     const last = this.stepTimes[this.stepTimes.length - 1];
-    if (last === undefined || now - last > 2000) return null;
+    if (last === undefined || now - last > CFG.staleMs) return null;
     // only the last 3 strides, so it catches up within a few seconds of a tempo change
     const st = this.strides(3);
     if (st.length >= 3) return 120000 / median(st);
@@ -102,7 +103,7 @@ export class StepDetector {
   // reacts faster than cadence(), used by the per-person model
   quickCadence(now: number): number | null {
     const last = this.stepTimes[this.stepTimes.length - 1];
-    if (last === undefined || now - last > 2000) return null;
+    if (last === undefined || now - last > CFG.staleMs) return null;
     const st = this.strides(2);
     if (st.length < 2) return null;
     return 120000 / ((st[0] + st[1]) / 2);
