@@ -8,7 +8,7 @@ export const CFG = {
   windowMs: 2000, // how far back the thresholds look
   hiFrac: 0.6, // "foot is up" threshold, as a fraction of the range
   loFrac: 0.35, // "foot is down again" threshold
-  minRange: 0.05, // ignore tiny wiggles (standing still)
+  minRange: 0.025, // ignore tiny wiggles (standing still)
   minStepGapMs: 250, // max 240 steps/min
   cadenceGaps: 7, // cadence uses the last 7 step gaps
   minAnkleVis: 0.5, // skip frames where ankles aren't clearly visible

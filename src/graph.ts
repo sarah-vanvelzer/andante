@@ -60,8 +60,13 @@ export class DebugGraph {
       );
       ctx.stroke();
     };
+    // red line = 60% of distance between highest & lowest white values
+    // crossing through red => step
     line("hi", "#e5484d", true);
+    // blue line = 35% of distance between highest & lowest white values
+    // must drop below blue before next step can count
     line("lo", "#3e9bff", true);
+    // white line = vertical distance between feet (scaled by leg length)
     line("v", "#e8e8e8", false);
     ctx.setLineDash([]);
   }
