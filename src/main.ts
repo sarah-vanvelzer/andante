@@ -30,12 +30,32 @@ metroBtn.addEventListener("click", async () => {
     beat.stop();
     metroBtn.textContent = "Start metronome";
   } else {
-    await beat.start(Number(bpmInput.value));
+    await beat.unlock();
+    // call if unclocked
+    beat.start(Number(bpmInput.value));
     metroBtn.textContent = "Stop metronome";
   }
 });
 bpmInput.addEventListener("change", () => {
   if (beat.playing) beat.setBpm(Number(bpmInput.value));
+});
+
+// andante mode: wait for steady steps, then start the beat at your own pace
+const andanteBtn = document.querySelector<HTMLButtonElement>("#andante")!;
+const beatEl = document.querySelector<HTMLSpanElement>("#beat")!;
+let andanteOn = false;
+andanteBtn.addEventListener("click", async () => {
+  if (andanteOn) {
+    andanteOn = false;
+    beat.stop();
+    andanteBtn.textContent = "Start Andante";
+  } else {
+    await beat.unlock();
+    beat.stop();
+    metroBtn.textContent = "Start metronome";
+    andanteOn = true;
+    andanteBtn.textContent = "Stop Andante";
+  }
 });
 
 const ctx = overlay.getContext("2d")!;
@@ -96,6 +116,10 @@ function loop() {
     stepsEl.textContent = String(detector.stepCount);
     cadenceEl.textContent = spm === null ? "–" : String(Math.round(spm));
     steadyEl.textContent = spm === null ? "–" : steady ? "Yes" : "No";
+
+    // lock on: first time steps are steady, start the beat at that cadence
+    if (andanteOn && !beat.playing && steady && spm !== null) beat.start(spm);
+    beatEl.textContent = beat.playing ? String(Math.round(beat.bpm)) : andanteOn ? "listening" : "–";
   }
   requestAnimationFrame(loop); // runs about 60 times a second
 }

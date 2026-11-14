@@ -15,11 +15,16 @@ export class Beat {
 
     get bpm() { return this.transport.bpm.value; }
     get playing() { return this.loopId !== null; }
-
-    // must be called from a click: browsers only allow audio after a user action
-    // creates beat
-    async start(bpm: number) {
+    
+    // must be called from a click
+    // browsers only allow audio after a user action
+    async unlock() {
         await Tone.start();
+    }
+
+    // safe to call from the video loop once unlocked
+    start(bpm: number) {
+        if (this.playing) return;
         this.transport.bpm.value = bpm;
         // one click per quarter note = one click per step
         this.loopId = this.transport.scheduleRepeat((time) => {
