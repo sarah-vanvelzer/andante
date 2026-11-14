@@ -5,7 +5,7 @@
 export const TEMPO = {
     stepEveryMs: 10000, // time between tempo changes (demo pace, real mode will be ~30 s)
     raise: 0.05, // raise by 5% each time
-    followTol: 0.08, // "keeping up" = your cadence within 8% of the beat
+    followTol: 0.1, // "keeping up" = your cadence within 8% of the beat
     maxAboveBase: 0.15, // never go more than 15% above where it locked
     formGood: 80, // form at or above this = ok to speed up
     formSlip: 65, // form below this = ease off

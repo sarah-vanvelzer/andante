@@ -90,8 +90,8 @@ export class StepDetector {
   cadence(now: number): number | null {
     const last = this.stepTimes[this.stepTimes.length - 1];
     if (last === undefined || now - last > 2000) return null;
-    // prefer strides (2 steps each) so uneven left/right steps don't skew it
-    const st = this.strides();
+    // only the last 3 strides, so it catches up within a few seconds of a tempo change
+    const st = this.strides(3);
     if (st.length >= 3) return 120000 / median(st);
     const g = this.gaps();
     if (g.length < 3) return null;

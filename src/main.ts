@@ -282,7 +282,7 @@ function loop() {
       const next = tempo.update(now, beat.bpm, spm, score);
       if (next !== null) {
         // tell the model so it can measure how you respond
-        model.tempoChanged(now, beat.bpm, next, detector.quickCadence(now));
+        model.tempoChanged(now, beat.bpm, next);
         beat.setBpm(next, 2);
       }
     }

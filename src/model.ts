@@ -18,8 +18,7 @@ const PRIOR_FOLLOW = 0.7;
 const PRIOR_WEIGHT = 0.005;
 
 export class PersonModel {
-  // follow rate = sum(x*y) / sum(x*x), x = tempo change %, y = cadence change %
-  // after each tempo change, wait 5 s, then compare cadence before & after
+  // follow rate = weighted average of (cadence change % / tempo change %), bigger changes count more
   private sxy = 0;
   private sxx = 0;
   events = 0;
@@ -28,11 +27,11 @@ export class PersonModel {
   // starting guess: higher tempo, lower form and falling form all mean more risk
   private w = [-2, 1, 3, 2];
   labels = 0;
-  // every second takes snpashoot of:
-  // (1) how far from starting tempo, (2) how low form is, (3) how fast form is falling
   slipRisk: number | null = null;
 
   private change: { at: number; bpmBefore: number; bpmAfter: number; spmBefore: number } | null = null;
+  // last 10 s of quick cadence readings, so before/after use a median (one bad step can't spike it)
+  private cadHist: { t: number; spm: number }[] = [];
   private pending: { at: number; x: number[] }[] = [];
   private formHist: { t: number; form: number }[] = [];
   private lastSample = -Infinity;
@@ -54,6 +53,7 @@ export class PersonModel {
   // learned numbers (sxy, sxx, w) are kept
   resetBuffers() {
     this.change = null;
+    this.cadHist = [];
     this.pending = [];
     this.formHist = [];
     this.slipRisk = null;
@@ -61,22 +61,39 @@ export class PersonModel {
   }
 
   // call when the controller changes the tempo
-  tempoChanged(now: number, bpmBefore: number, bpmAfter: number, spmBefore: number | null) {
+  tempoChanged(now: number, bpmBefore: number, bpmAfter: number) {
+    const spmBefore = this.recentCadence(now);
     this.change = spmBefore === null ? null : { at: now, bpmBefore, bpmAfter, spmBefore };
+  }
+
+  // median of the last 3 s of cadence readings, or null if there aren't enough
+  private recentCadence(now: number): number | null {
+    const xs = this.cadHist.filter((h) => h.t >= now - 3000).map((h) => h.spm);
+    if (xs.length < 3) return null;
+    xs.sort((a, b) => a - b);
+    return xs[xs.length >> 1];
   }
 
   // call every frame while the beat is playing
   update(now: number, spm: number | null, bpm: number, base: number, form: number | null) {
+    if (spm !== null) this.cadHist.push({ t: now, spm });
+    while (this.cadHist.length && this.cadHist[0].t < now - 10000) this.cadHist.shift();
+
     // 1. follow rate: once the change has settled, see how far your cadence moved
-    if (this.change && now - this.change.at >= MODEL.settleMs && spm !== null) {
+    if (this.change && now - this.change.at >= MODEL.settleMs) {
       const c = this.change;
-      const x = (c.bpmAfter - c.bpmBefore) / c.bpmBefore;
-      // clamp so one weird reading can't wreck the estimate
-      const y = clamp((spm - c.spmBefore) / c.spmBefore, -0.3, 0.3);
-      this.sxy += x * y;
-      this.sxx += x * x;
-      this.events++;
+      const spmAfter = this.recentCadence(now);
       this.change = null;
+      if (spmAfter !== null) {
+        const x = (c.bpmAfter - c.bpmBefore) / c.bpmBefore;
+        const y = (spmAfter - c.spmBefore) / c.spmBefore;
+        // how much of the tempo change you followed: 0 = not at all, 1 = fully
+        // capped to 0..1.5 so one noisy reading can't wreck the estimate
+        const r = clamp(y / x, 0, 1.5);
+        this.sxy += x * x * r;
+        this.sxx += x * x;
+        this.events++;
+      }
     }
 
     if (form === null) return;
@@ -88,7 +105,6 @@ export class PersonModel {
 
     // features: [bias, tempo above start, low form, form dropping]
     const x = [1, (bpm / base - 1) * 10, (100 - form) / 100, drop];
-    // turns inputs into 0-100% chance
     this.slipRisk = sigmoid(dot(this.w, x));
 
     // one training example per second
@@ -99,12 +115,10 @@ export class PersonModel {
 
     // 2. slip risk: once enough time has passed, we know if form actually slipped
     // learn from it with one step of gradient descent
-    // checks whether form actually slipped below 65 & nudges weights toward the right answer
     while (this.pending.length && now - this.pending[0].at >= MODEL.horizonMs) {
       const ex = this.pending.shift()!;
       const label = form < TEMPO.formSlip ? 1 : 0;
       const err = label - sigmoid(dot(this.w, ex.x));
-      // capped influence rule
       this.w = this.w.map((wi, i) => clamp(wi + MODEL.lr * err * ex.x[i], -6, 6));
       this.labels++;
     }
