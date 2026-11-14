@@ -90,19 +90,45 @@ export class StepDetector {
   cadence(now: number): number | null {
     const last = this.stepTimes[this.stepTimes.length - 1];
     if (last === undefined || now - last > 2000) return null;
+    // prefer strides (2 steps each) so uneven left/right steps don't skew it
+    const st = this.strides();
+    if (st.length >= 3) return 120000 / median(st);
     const g = this.gaps();
     if (g.length < 3) return null;
     return 60000 / median(g);
   }
 
-  // nbeat-lock rule: spread of last 7 gaps (fastest + slowest dropped) < 35% of median
+  // beat-lock rule: steady if either step gaps or stride gaps are even enough
+  // stride = every other step (same foot to same foot)
+  // strides cancel out left/right differences so slow or uneven marching can still lock
   steadiness(): { steady: boolean; spread: number | null } {
-    const g = this.gaps();
-    if (g.length < CFG.cadenceGaps) return { steady: false, spread: null };
-    const s = [...g].sort((a, b) => a - b).slice(1, -1);
-    const spread = (s[s.length - 1] - s[0]) / median(g);
+    const step = spreadOf(this.gaps());
+    const stride = spreadOf(this.strides());
+    const spreads = [step, stride].filter((x): x is number => x !== null);
+    if (!spreads.length) return { steady: false, spread: null };
+    const spread = Math.min(...spreads);
     return { steady: spread < CFG.steadySpread, spread };
   }
+
+  // last n stride times in ms, newest first
+  strides(n = 5): number[] {
+    const g: number[] = [];
+    for (let i = this.stepTimes.length - 1; i > 1 && g.length < n; i--) {
+      const d = this.stepTimes[i] - this.stepTimes[i - 2];
+      if (d > 4000) break;
+      g.push(d);
+    }
+    return g;
+  }
+}
+
+// spread of gaps with fastest + slowest dropped, as a fraction of the median
+// null if there aren't at least 5 gaps yet
+// same 35% rule as before
+function spreadOf(g: number[]): number | null {
+  if (g.length < 5) return null;
+  const s = [...g].sort((a, b) => a - b).slice(1, -1);
+  return (s[s.length - 1] - s[0]) / median(g);
 }
 
 // vertical gap between highest and lowest foot point, divided by leg length

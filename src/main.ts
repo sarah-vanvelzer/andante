@@ -112,10 +112,10 @@ function loop() {
     if (step) graph.step(now);
     graph.draw(now);
     const spm = detector.cadence(now);
-    const { steady } = detector.steadiness();
+    const { steady, spread } = detector.steadiness();
     stepsEl.textContent = String(detector.stepCount);
     cadenceEl.textContent = spm === null ? "–" : String(Math.round(spm));
-    steadyEl.textContent = spm === null ? "–" : steady ? "Yes" : "No";
+    steadyEl.textContent = spm === null ? "–" : (steady ? "Yes" : "No") + (spread === null ? "" : ` ${Math.round(spread * 100)}%`);
 
     // lock on: first time steps are steady, start the beat at that cadence
     if (andanteOn && !beat.playing && steady && spm !== null) beat.start(spm);
