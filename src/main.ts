@@ -1,11 +1,20 @@
 import "./style.css";
 import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { createPose } from "./pose";
+import { StepDetector } from "./steps";
 
 const video = document.querySelector<HTMLVideoElement>("#video")!;
 const overlay = document.querySelector<HTMLCanvasElement>("#overlay")!;
 const startBtn = document.querySelector<HTMLButtonElement>("#start")!;
 const statusEl = document.querySelector<HTMLSpanElement>("#status")!;
+
+const stepsEl = document.querySelector<HTMLSpanElement>("#steps")!;
+const cadenceEl = document.querySelector<HTMLSpanElement>("#cadence")!;
+const steadyEl = document.querySelector<HTMLSpanElement>("#steady")!;
+const resetBtn = document.querySelector<HTMLButtonElement>("#reset")!;
+
+const detector = new StepDetector();
+resetBtn.addEventListener("click", () => detector.reset());
 
 const ctx = overlay.getContext("2d")!;
 const draw = new DrawingUtils(ctx);
@@ -54,6 +63,14 @@ function loop() {
       // draws joints
       draw.drawLandmarks(lm, { color: "#f19f12", radius: 3 });
     }
+
+    // step detection + readout
+    detector.update(lm, now);
+    const spm = detector.cadence(now);
+    const { steady } = detector.steadiness();
+    stepsEl.textContent = String(detector.stepCount);
+    cadenceEl.textContent = spm === null ? "–" : String(Math.round(spm));
+    steadyEl.textContent = spm === null ? "–" : steady ? "Yes" : "No";
   }
   requestAnimationFrame(loop); // runs about 60 times a second
 }
