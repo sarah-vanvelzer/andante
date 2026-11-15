@@ -1,5 +1,5 @@
 import "./style.css";
-import { DrawingUtils, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { DrawingUtils, PoseLandmarker, type NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { createPose } from "./pose";
 import { StepDetector, median } from "./steps";
 import { Beat } from "./beat";
@@ -276,6 +276,23 @@ let pose: PoseLandmarker | null = null;
 let lastVideoTime = -1;
 let lastChartPush = 0;
 
+
+// smoothed copy of the landmarks, only for drawing the skeleton
+// step counting and form still use the raw points
+let drawLm: NormalizedLandmark[] | null = null;
+function smoothForDrawing(lm: NormalizedLandmark[]): NormalizedLandmark[] {
+  const a = 0.5; // how much of each new frame to take (lower = calmer but laggier)
+  drawLm = !drawLm || drawLm.length !== lm.length
+    ? lm.map((p) => ({ ...p }))
+    : drawLm.map((p, i) => ({
+      x: p.x + a * (lm[i].x - p.x),
+      y: p.y + a * (lm[i].y - p.y),
+      z: p.z + a * (lm[i].z - p.z),
+      visibility: lm[i].visibility,
+    }));
+  return drawLm;
+}
+
 // camera starts by itself when the page opens
 // if it fails (e.g. permission blocked), click the camera pill to try again
 let starting = false;
@@ -323,8 +340,16 @@ function loop() {
 
     const lm = result.landmarks[0]; // list of points for one person
     if (lm) {
-      draw.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, { color: "#ffffff", lineWidth: 4 });
-      draw.drawLandmarks(lm, { color: "#fcd113", radius: 4 });
+      const d = smoothForDrawing(lm);
+      // neon glow (canvas shadow), then reset so nothing else glows
+      ctx.shadowColor = "#29b6c9";
+      ctx.shadowBlur = 18;
+      draw.drawConnectors(d, PoseLandmarker.POSE_CONNECTIONS, { color: "#7fe9f7", lineWidth: 5 });
+      ctx.shadowColor = "#fcd113";
+      draw.drawLandmarks(d, { color: "#fcd113", fillColor: "#fcd113", radius: 5 });
+      ctx.shadowBlur = 0;
+    } else {
+      drawLm = null; // start fresh when you come back into view
     }
 
     // step detection + form

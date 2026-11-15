@@ -66,7 +66,8 @@ export class LineChart {
     }
     let lo = Math.min(...vals) - 6;
     let hi = Math.max(...vals) + 6;
-    if (hi - lo < 20) { const mid = (hi + lo) / 2; lo = mid - 10; hi = mid + 10; }
+    // always show at least a 40 bpm range, so small wobbles don't look dramatic
+    if (hi - lo < 40) { const mid = (hi + lo) / 2; lo = mid - 20; hi = mid + 20; }
 
     const left = 36 * dpr;
     const plotH = h - (STRIP + GAP) * dpr;
