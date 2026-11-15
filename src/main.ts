@@ -172,8 +172,12 @@ function showReport(s: Session) {
   put("rTempo", `${Math.round(s.startBpm)} → ${Math.round(s.endBpm)}`);
   $("rTempoSub").textContent = `start → end bpm · peak ${Math.round(s.peakBpm)}`;
   put("rOnBeat", s.followPct === null ? null : `${s.followPct}%`);
-  put("rCarry", s.carryovers.length ? `${Math.round(Math.max(...s.carryovers) * 100)}%` : null);
-  $("rCarrySub").textContent = s.carryovers.length ? "pace held without the beat" : "no check this session";
+  // big number = last check, small text lists the recent ones
+  const checks = s.carryovers.map((c) => `${Math.round(c * 100)}%`);
+  put("rCarry", checks.length ? checks[checks.length - 1] : null);
+  // only the last 3 checks so the line never gets long, "…" if there were more
+  const recent = checks.slice(-3).join(" → ");
+  $("rCarrySub").textContent = checks.length > 1 ? `checks: ${checks.length > 3 ? "… → " : ""}${recent}` : checks.length ? "pace held without the beat" : "no check this session";
   put("rLength", String(s.durationS));
   put("rCadence", s.avgSpm === null ? null : String(Math.round(s.avgSpm)));
   put("rForm", s.avgForm === null ? null : String(s.avgForm));
