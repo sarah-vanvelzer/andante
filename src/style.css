@@ -184,6 +184,12 @@ h2 { margin: 0; font-size: 26px; font-weight: 700; }
 .debug-row { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; font-size: 17px; }
 .debug-graph { display: block; width: 100%; height: 240px; border-radius: 12px; }
 
+/* phones and tablets: hide the app, show the note instead */
+.touch-only > :not(#deviceNote):not(script) { display: none !important; }
+.device-note { min-height: 100vh; padding: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+.device-title { margin: 0; font-size: 26px; font-weight: 700; }
+.device-note .small { margin: 0; max-width: 340px; }
+
 /* narrow screens: stack the columns */
 @media (max-width: 1000px) {
   .layout { grid-template-columns: minmax(0, 1fr); padding: 0 20px 32px; }

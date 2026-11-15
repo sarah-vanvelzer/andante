@@ -324,7 +324,15 @@ async function startCamera() {
 }
 camPill.addEventListener("click", startCamera);
 route();
-startCamera();
+
+// phones and tablets (touch only, no mouse): show a "use a laptop" note instead of the app
+const touchOnly = matchMedia("(hover: none) and (pointer: coarse)").matches;
+if (touchOnly) {
+  document.body.classList.add("touch-only");
+  $("deviceNote").hidden = false;
+} else {
+  startCamera();
+}
 
 function loop() {
   if (pose && video.currentTime !== lastVideoTime) {
