@@ -1,50 +1,186 @@
 <!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Andante</title>
+    <!-- backup font if lenia sans isn't there (e.g. on the live site) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@600;700&display=swap" />
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="brand">ANDANTE</span>
+      <div class="topbar-right">
+        <label class="switch">
+          Demo mode
+          <input id="demo" type="checkbox" checked />
+          <span class="switch-track" aria-hidden="true"></span>
+        </label>
+        <button id="camPill" class="pill" type="button"><span class="dot"></span><span id="status">Camera off</span></button>
+        <a id="debugLink" class="pill pill-outline" href="#debug">Debug</a>
+      </div>
+    </header>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Andante</title>
-</head>
+    <!-- live session -->
+    <main id="liveView" class="layout">
+      <section class="left">
+        <div id="stage" class="card camera">
+          <video id="video" playsinline muted></video>
+          <canvas id="overlay"></canvas>
+        </div>
 
-<body>
-  <header>
-    <h1>Andante</h1>
-    <button id="start">Start camera</button>
-    <span id="status">Idle</span>
-    <label id="demoLabel"><input id="demo" type="checkbox" checked /> Demo mode</label>
-  </header>
-  <main>
-    <!-- stage for video -->
-    <div id="stage">
-      <video id="video" playsinline muted></video>
-      <!-- canvas draws skeleton -->
-      <canvas id="overlay"></canvas>
-    </div>
-    <section id="readout">
-      <div><span class="label">Steps</span><span id="steps">0</span></div>
-      <div><span class="label">Steps/min</span><span id="cadence">–</span></div>
-      <div><span class="label">Steady</span><span id="steady">–</span></div>
-      <div><span class="label">Form</span><span id="form">–</span></div>
-      <div><span class="label">Lean</span><span id="lean">–</span></div>
-      <div><span class="label">Lift</span><span id="lift">–</span></div>
-      <div><span class="label">Tempo</span><span id="coach">–</span></div>
-      <div><span class="label">Model</span><span id="model">–</span></div>
-      <button id="reset">Reset count</button>
-      <!-- grabs bpm from whatever is currently in box -->
-      <label>BPM <input id="bpm" type="number" value="100" min="40" max="200" /></label>
-      <button id="metronome">Start metronome</button>
-      <button id="andante">Start Andante</button>
-      <button id="carry">Test carryover</button>
-      <div><span class="label">Carryover</span><span id="carryResult">–</span></div>
-      <!-- beat readout -->
-      <div><span class="label">Beat</span><span id="beat">–</span></div>
-    </section>
-    <canvas id="graph"></canvas>
-    <section id="summary"></section>
-    </div>
-  </main>
-  <script type="module" src="/src/main.ts"></script>
-</body>
+        <div class="card chart-card">
+          <div class="card-head">
+            <h2>Last 60 seconds</h2>
+            <span class="legend">
+              <span><i class="dot beat"></i>Beat</span>
+              <span><i class="dot you"></i>You</span>
+              <span><i class="strip"></i>Form</span>
+            </span>
+          </div>
+          <canvas id="liveChart" class="chart"></canvas>
+        </div>
+      </section>
 
+      <aside class="right">
+        <div id="banner" class="banner" data-tone="idle" role="status">
+          <span id="bannerTitle" class="banner-title">Starting camera…</span>
+          <span id="bannerSub" class="banner-sub">Stand side-on, 2–3 m back</span>
+        </div>
+
+        <div class="tiles">
+          <div id="beatTile" class="card tile">
+            <span class="label"><i class="dot beat"></i>BEAT</span>
+            <span id="beat" class="big empty">—</span>
+            <span class="unit">bpm</span>
+            <span id="beatSub" class="small">&nbsp;</span>
+          </div>
+          <div class="card tile">
+            <span class="label"><i class="dot you"></i>YOU</span>
+            <span id="cadence" class="big empty">—</span>
+            <span class="unit">steps/min</span>
+            <span class="small">&nbsp;</span>
+          </div>
+        </div>
+
+        <div class="card form-card">
+          <div class="row-between">
+            <div class="stack">
+              <span class="label">FORM</span>
+              <span id="formDetail" class="small">Measured after the beat locks</span>
+            </div>
+            <span id="form" class="mid empty">—</span>
+          </div>
+          <div class="form-bar">
+            <span class="zone red"></span>
+            <span class="zone yellow"></span>
+            <span class="zone green"></span>
+            <span id="formMarker" class="marker" hidden></span>
+          </div>
+        </div>
+
+        <div class="card model-card">
+          <span class="label">MODEL</span>
+          <div class="model-stat"><span class="small">Follows</span><span id="follow" class="stat empty">—</span></div>
+          <div class="model-stat"><span class="small">Slip risk</span><span id="slipRisk" class="stat empty">—</span></div>
+        </div>
+
+        <button id="andante" class="main-button">START ANDANTE</button>
+      </aside>
+    </main>
+
+    <!-- session report (shown after end session) -->
+    <main id="reportView" class="layout" hidden>
+      <section class="left">
+        <div class="hero-stats">
+          <div class="card stat-card">
+            <span class="label"><i class="dot beat"></i>TEMPO</span>
+            <span class="stat-row"><span id="rTempo" class="hero empty">—</span></span>
+            <span id="rTempoSub" class="small">&nbsp;</span>
+          </div>
+          <div class="card stat-card">
+            <span class="label"><i class="dot you"></i>ON THE BEAT</span>
+            <span class="stat-row"><span id="rOnBeat" class="hero empty">—</span></span>
+            <span class="small">of the time</span>
+          </div>
+          <div class="card stat-card">
+            <span class="label"><i class="dot carry"></i>CARRYOVER</span>
+            <span class="stat-row"><span id="rCarry" class="hero empty">—</span></span>
+            <span id="rCarrySub" class="small">pace held without the beat</span>
+          </div>
+        </div>
+
+        <div class="card mini-stats">
+          <div class="mini"><span class="small">Length</span><span><b id="rLength">—</b> s</span></div>
+          <div class="mini"><span class="small">Average cadence</span><span><b id="rCadence">—</b> steps/min</span></div>
+          <div class="mini"><span class="small">Average form</span><span><b id="rForm">—</b> / 100</span></div>
+        </div>
+
+        <div class="card chart-card">
+          <div class="card-head">
+            <h2>Whole session</h2>
+            <span class="legend">
+              <span><i class="dot beat"></i>Beat</span>
+              <span><i class="dot you"></i>You</span>
+              <span><i class="strip"></i>Form</span>
+            </span>
+          </div>
+          <canvas id="sessionChart" class="chart"></canvas>
+        </div>
+      </section>
+
+      <aside class="right">
+        <div class="card coach">
+          <div class="card-head">
+            <h2>Coach report</h2>
+            <span class="tag">Gemini</span>
+          </div>
+          <p id="coachSummary" class="coach-text">Asking the coach…</p>
+          <div id="coachLists" class="coach-lists" hidden>
+            <div><span class="label-sm">WENT WELL</span><ul id="coachWell"></ul></div>
+            <div><span class="label-sm">TO WORK ON</span><ul id="coachWork"></ul></div>
+          </div>
+          <p id="coachTrend" class="coach-trend"></p>
+          <div class="learned">
+            <span class="label-sm">WHAT ANDANTE LEARNED</span>
+            <span id="coachLearned" class="small">—</span>
+          </div>
+          <div class="plan">
+            <span class="label-sm">NEXT SESSION PLAN</span>
+            <div class="plan-row">
+              <div><span class="small">Start at</span><span id="planStart" class="plan-val">—</span></div>
+              <div><span class="small">Up to</span><span id="planMax" class="plan-val">—</span></div>
+              <div><span class="small">Length</span><span id="planMin" class="plan-val">—</span></div>
+            </div>
+            <span id="planFocus" class="small"></span>
+          </div>
+        </div>
+        <button id="newSession" class="main-button">NEW SESSION</button>
+      </aside>
+    </main>
+
+    <!-- debug page (header button or localhost:5173/#debug) -->
+    <main id="debugView" class="layout debug-page" hidden>
+      <section class="card debug-card">
+        <div class="card-head">
+          <h2>Debug</h2>
+          <a class="pill pill-outline" href="#">Back to Andante</a>
+        </div>
+        <div class="debug-row">
+          <span>Steps <b id="steps">0</b></span>
+          <span>Steps/min <b id="dCadence">–</b></span>
+          <span>Steady <b id="steady">–</b></span>
+          <span>Lean <b id="lean">–</b></span>
+          <span>Lift <b id="lift">–</b></span>
+          <span>Tempo <b id="tempoState">–</b></span>
+          <button id="reset" class="pill" type="button">Reset count</button>
+        </div>
+        <canvas id="graph" class="debug-graph"></canvas>
+        <p class="small">White = foot signal · red = step line · blue = reset line · orange = counted step</p>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>
