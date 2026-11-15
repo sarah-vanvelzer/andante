@@ -190,3 +190,6 @@ h2 { margin: 0; font-size: 26px; font-weight: 700; }
   .topbar { padding: 20px; }
   .hero-stats { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* coach box headings: same size and weight as the other card labels */
+.learned .label-sm, .plan .label-sm { font-size: 16px; font-weight: 700; }
