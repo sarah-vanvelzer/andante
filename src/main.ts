@@ -398,11 +398,10 @@ function loop() {
       if (spm !== null && now - carry.start > 2000) carry.spms.push(spm);
       if (now >= carry.until) {
         beat.mute(false);
-        const held = carry.spms.length ? median(carry.spms) / carry.bpm : null;
-        if (held !== null) {
-          recorder.addCarryover(held);
-          lastCarry = { held, at: now };
-        }
+        // no steps during the whole check = you stopped, so pace held 0%
+        const held = carry.spms.length ? median(carry.spms) / carry.bpm : 0;
+        recorder.addCarryover(held);
+        lastCarry = { held, at: now };
         carry = null;
       }
     }
