@@ -10,6 +10,7 @@ import { getCoachReport, type CoachReport } from "./coach";
 import { PersonModel, MODEL } from "./model";
 import { LineChart } from "./chart";
 import { DebugGraph } from "./graph";
+import { Music, levelFor } from "./music";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -38,7 +39,7 @@ const andanteBtn = $<HTMLButtonElement>("andante");
 // report screen
 const reportView = $("reportView");
 
-// debug page (localhost:5173/#debug), nothing on the main page links to it
+// debug page (debug button in the top bar, or localhost:5173/#debug)
 const debugView = $("debugView");
 const stepsEl = $("steps");
 const dCadenceEl = $("dCadence");
@@ -88,6 +89,9 @@ const sessionChart = new LineChart($<HTMLCanvasElement>("sessionChart"), null);
 
 // hidden fixed metronome at 100 bpm (press m), no button on screen
 const beat = new Beat();
+// music on top of the kick during andante (set to false to go back to the plain thump)
+const MUSIC_ON = true;
+const music = new Music();
 async function toggleMetronome() {
   if (andanteOn) return; // andante owns the beat while it's running
   if (beat.playing) return beat.stop();
@@ -133,6 +137,7 @@ andanteBtn.addEventListener("click", async () => {
     });
     beat.stop();
     beat.mute(false);
+    music.stop();
     tempo.reset();
     form.reset();
     model.save(); // remember what it learned for next time
@@ -164,7 +169,7 @@ function showReport(s: Session) {
     el.classList.toggle("empty", text === null);
   };
   put("rTempo", `${Math.round(s.startBpm)} → ${Math.round(s.endBpm)}`);
-  $("rTempoSub").textContent = `bpm · peak ${Math.round(s.peakBpm)}`;
+  $("rTempoSub").textContent = `start → end bpm · peak ${Math.round(s.peakBpm)}`;
   put("rOnBeat", s.followPct === null ? null : `${s.followPct}%`);
   put("rCarry", s.carryovers.length ? `${Math.round(Math.max(...s.carryovers) * 100)}%` : null);
   $("rCarrySub").textContent = s.carryovers.length ? "pace held without the beat" : "no check this session";
@@ -334,6 +339,7 @@ function loop() {
     // only lock onto a real marching pace (stops it locking at 29 while you shuffle at the laptop)
     if (andanteOn && !beat.playing && steady && spm !== null && spm >= 40) {
       beat.start(spm);
+      if (MUSIC_ON) music.start();
       tempo.lock(spm, now);
       form.startBaseline(now);
       nextCarryAt = now + carryFirstMs;
@@ -382,6 +388,9 @@ function loop() {
     if (andanteOn && beat.playing && !carry && tempo.base !== null) {
       model.update(now, detector.quickCadence(now), beat.bpm, tempo.base, score);
     }
+
+    // music thins out when form slips, goes silent for carryover
+    if (music.playing) music.setLevel(carry?.muted ? 0 : levelFor(tempo.state));
 
     // record one sample per second while andante is running
     if (andanteOn && beat.playing) recorder.record(now, spm, beat.bpm, score, tempo.state);

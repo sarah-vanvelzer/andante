@@ -103,7 +103,8 @@ h2 { margin: 0; font-size: 26px; font-weight: 700; }
 .legend { display: flex; gap: 16px; font-size: 15px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend .strip { width: 18px; height: 8px; border-radius: 2px; background: linear-gradient(90deg, var(--red) 0 33%, var(--yellow) 33% 66%, var(--green) 66%); }
-.chart { flex: 1; width: 100%; min-height: 110px; display: block; }
+/* flex-basis 0 + height 0 so the canvas's own pixel size never pushes the card bigger */
+.chart { flex: 1 1 0; height: 0; width: 100%; min-height: 110px; display: block; }
 
 /* status banner */
 .banner {

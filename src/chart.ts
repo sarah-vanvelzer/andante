@@ -12,6 +12,7 @@ export class LineChart {
   private spanMs: number | null;
   private emptyText: string;
   points: Point[] = [];
+  private lastNow: number | undefined;
 
   // spanMs = how much time to show (null = everything)
   constructor(canvas: HTMLCanvasElement, spanMs: number | null, emptyText = "") {
@@ -19,6 +20,9 @@ export class LineChart {
     this.ctx = canvas.getContext("2d")!;
     this.spanMs = spanMs;
     this.emptyText = emptyText;
+    // redraw whenever the box changes size (e.g. the coach report arrives and the card grows)
+    // otherwise the old drawing gets stretched
+    new ResizeObserver(() => this.draw(this.lastNow)).observe(canvas);
   }
 
   push(p: Point) {
@@ -35,7 +39,9 @@ export class LineChart {
   }
 
   draw(now?: number) {
+    this.lastNow = now;
     const { canvas: c, ctx } = this;
+    if (!c.clientWidth || !c.clientHeight) return; // hidden
     const dpr = devicePixelRatio;
     const w = (c.width = c.clientWidth * dpr);
     const h = (c.height = c.clientHeight * dpr);
