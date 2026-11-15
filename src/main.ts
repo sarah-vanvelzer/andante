@@ -155,6 +155,7 @@ andanteBtn.addEventListener("click", async () => {
     beat.stop();
     andanteOn = true;
     lastCarry = null;
+    liveChart.clear(); // fresh chart for the new session
     andanteBtn.textContent = "END SESSION";
     andanteBtn.classList.add("running");
   }
@@ -190,6 +191,7 @@ function showReport(s: Session) {
 
 newSessionBtn.addEventListener("click", () => {
   reportOpen = false;
+  liveChart.clear(); // empty chart as soon as you leave the report
   route();
 });
 
@@ -429,7 +431,8 @@ function loop() {
     if (andanteOn && beat.playing) recorder.record(now, spm, beat.bpm, score, tempo.state);
 
     // live chart: 4 points a second, beat line breaks while muted
-    if (now - lastChartPush > 250) {
+    // only while a session is running, so the chart stays empty between sessions
+    if (andanteOn && now - lastChartPush > 250) {
       lastChartPush = now;
       liveChart.push({ t: now, beat: beat.playing && !carry?.muted ? beat.bpm : null, you: spm, form: score });
     }
@@ -450,7 +453,8 @@ function loop() {
     if (score !== null) formMarker.style.left = `${score}%`;
     formDetailEl.textContent = ld === null || lr === null ? (form.calibrating ? "Learning your normal form" : "Measured after the beat locks") : `Lean +${Math.max(0, Math.round(ld))}° · lift ${Math.round(lr * 100)}%`;
 
-    setNum(followEl, model.followReady ? `${Math.round(model.follow() * 100)}%` : null);
+    // follow can go over 100% (you sped up more than the beat), show it capped at 100%
+    setNum(followEl, model.followReady ? `${Math.min(100, Math.round(model.follow() * 100))}%` : null);
     setNum(slipEl, model.slipReady && model.slipRisk !== null && andanteOn ? `${Math.round(model.slipRisk * 100)}%` : null);
     if (!liveView.hidden) liveChart.draw(now);
 

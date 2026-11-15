@@ -5,6 +5,7 @@ export type Point = { t: number; beat: number | null; you: number | null; form: 
 const C = { beat: "#e6b800", you: "#29b6c9", grid: "#e2e0da", text: "#6b6862", red: "#ff6464", yellow: "#fcd113", green: "#95da4c" };
 const STRIP = 10; // form strip height (css px)
 const GAP = 10; // space between the lines and the strip
+const XLAB = 22; // room under the strip for the time labels
 
 export class LineChart {
   private canvas: HTMLCanvasElement;
@@ -66,27 +67,51 @@ export class LineChart {
     }
     let lo = Math.min(...vals) - 6;
     let hi = Math.max(...vals) + 6;
-    // always show at least a 40 bpm range, so small wobbles don't look dramatic
-    if (hi - lo < 40) { const mid = (hi + lo) / 2; lo = mid - 20; hi = mid + 20; }
+    if (hi - lo < 20) { const mid = (hi + lo) / 2; lo = mid - 10; hi = mid + 10; }
 
     const left = 36 * dpr;
-    const plotH = h - (STRIP + GAP) * dpr;
+    const top = 18 * dpr; // room for the "steps/min" label
+    const plotH = h - (STRIP + GAP + XLAB) * dpr;
     const X = (t: number) => left + ((t - tStart) / (tEnd - tStart || 1)) * (w - left);
-    const Y = (v: number) => plotH - ((v - lo) / (hi - lo)) * plotH;
+    const Y = (v: number) => top + (plotH - top) - ((v - lo) / (hi - lo)) * (plotH - top);
 
     // grid lines with tempo labels
     ctx.fillStyle = C.text;
     ctx.strokeStyle = C.grid;
     ctx.lineWidth = dpr;
-    for (let i = 1; i <= 3; i++) {
-      const v = lo + ((hi - lo) * i) / 4;
+    // fewer grid lines when the chart is short, so the labels don't overlap
+    const rows = (plotH - top) / dpr < 90 ? 2 : 3;
+    for (let i = 1; i <= rows; i++) {
+      const v = lo + ((hi - lo) * i) / (rows + 1);
       const y = Y(v);
       ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(w, y); ctx.stroke();
       ctx.fillText(String(Math.round(v)), 0, y + 4 * dpr);
     }
 
+    // y axis unit
+    ctx.fillText("steps/min", 0, 12 * dpr);
+
+    // x axis: time labels under the strip
+    // live: seconds ago ("60s ago" … "now"), session: time since the start (0:00, 0:30 …)
+    ctx.textAlign = "center";
+    const ly = h - 4 * dpr;
+    if (this.spanMs !== null) {
+      for (let s = 60; s >= 0; s -= 15) {
+        const x = Math.min(Math.max(X(tEnd - s * 1000), left + 20 * dpr), w - 14 * dpr);
+        ctx.fillText(s === 0 ? "now" : `${s}s ago`, x, ly);
+      }
+    } else {
+      const total = (tEnd - tStart) / 1000;
+      const step = total > 600 ? 120 : total > 240 ? 60 : total > 90 ? 30 : 15;
+      for (let s = 0; s <= total; s += step) {
+        const x = Math.min(Math.max(X(tStart + s * 1000), left + 14 * dpr), w - 14 * dpr);
+        ctx.fillText(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`, x, ly);
+      }
+    }
+    ctx.textAlign = "start";
+
     // form strip: each stretch coloured by its zone (red < 65, yellow 65–79, green 80+)
-    const sy = h - STRIP * dpr;
+    const sy = h - (STRIP + XLAB) * dpr;
     for (let i = 0; i < pts.length - 1; i++) {
       const f = pts[i].form;
       if (f === null) continue;
