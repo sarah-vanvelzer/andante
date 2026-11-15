@@ -395,7 +395,8 @@ function loop() {
         carry.muted = true;
       }
       // skip the first 2 s so we measure your pace without the beat, not the old one
-      if (spm !== null && now - carry.start > 2000) carry.spms.push(spm);
+      // no steps counts as 0, so standing still scores low instead of being skipped
+      if (now - carry.start > 2000) carry.spms.push(spm ?? 0);
       if (now >= carry.until) {
         beat.mute(false);
         // no steps during the whole check = you stopped, so pace held 0%
@@ -425,6 +426,9 @@ function loop() {
 
     // music thins out when form slips, goes silent for carryover
     if (music.playing) music.setLevel(carry?.muted ? 0 : levelFor(tempo.state));
+
+    // off beat: music dips a little so the kick is easier to follow
+    if (music.playing) music.dip(tempo.state === "holding (off beat)");
 
     // record one sample per second while andante is running
     if (andanteOn && beat.playing) recorder.record(now, spm, beat.bpm, score, tempo.state);

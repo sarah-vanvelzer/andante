@@ -26,12 +26,16 @@ export class Music {
   private ids: number[] = [];
   private level: MusicLevel = 0;
 
+  // one knob for all the music (not the kick), used to dip it when you're off beat
+  private master = new Tone.Volume(0).toDestination();
+  private dipped = false;
+
   // one volume knob per layer, so each can fade on its own
-  private hatVol = new Tone.Volume(OFF).toDestination();
-  private clapVol = new Tone.Volume(OFF).toDestination();
-  private bassVol = new Tone.Volume(OFF).toDestination();
-  private chordVol = new Tone.Volume(OFF).toDestination();
-  private arpVol = new Tone.Volume(OFF).toDestination();
+  private hatVol = new Tone.Volume(OFF).connect(this.master);
+  private clapVol = new Tone.Volume(OFF).connect(this.master);
+  private bassVol = new Tone.Volume(OFF).connect(this.master);
+  private chordVol = new Tone.Volume(OFF).connect(this.master);
+  private arpVol = new Tone.Volume(OFF).connect(this.master);
 
   // the "pump": chords duck on every kick and swell back up (sidechain feel)
   private pump = new Tone.Gain(1).connect(new Tone.Reverb({ decay: 2.5, wet: 0.3 }).connect(this.chordVol));
@@ -134,6 +138,13 @@ export class Music {
     this.bassVol.volume.rampTo(level >= 2 ? ON.bass : OFF, seconds);
     this.chordVol.volume.rampTo(level >= 3 ? ON.chords : OFF, seconds);
     this.arpVol.volume.rampTo(level >= 3 ? ON.arp : OFF, seconds);
+  }
+
+  // turn all the music down a bit (kick stays the same) so the beat stands out
+  dip(on: boolean) {
+    if (on === this.dipped) return;
+    this.dipped = on;
+    this.master.volume.rampTo(on ? -8 : 0, 0.5);
   }
 }
 
