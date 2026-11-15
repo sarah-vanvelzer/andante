@@ -21,7 +21,6 @@
   --muted: #6b6862;
   --empty: #b9b6ae;
   --teal: #29b6c9;
-  --camera: #236675;
   --green: #95da4c;
   --yellow: #fcd113;
   --orange: #fe975b;
@@ -95,7 +94,7 @@ h2 { margin: 0; font-size: 26px; font-weight: 700; }
 .card { background: var(--card); border-radius: var(--radius); }
 
 /* camera */
-.camera { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--camera); flex: none; }
+.camera { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--teal); flex: none; }
 #video, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
 /* charts: the card grows to fill the column, so it ends level with the button */
