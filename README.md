@@ -1,8 +1,8 @@
 # Andante
  
 **Adaptive rhythm for walking rehab, from a laptop webcam.**
- 
-<!-- DEMO VIDEO: delete this line, then drag your .mp4 here in the GitHub editor -->
+
+https://github.com/user-attachments/assets/d95b847a-21de-4949-98d1-be497d8a620e
  
 Andante watches you march side-on through your webcam, plays a beat at your own pace, nudges the tempo up while your form holds, and eases off when it slips. A small on-device model learns how you respond, and after each session a Gemini coach writes a short report and plans your next one.
  
